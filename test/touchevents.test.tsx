@@ -111,6 +111,59 @@ describe('TouchEventBoundary._onTouchStart', () => {
     });
   });
 
+  it('displayName is preferred over testID', () => {
+    const { defaultProps } = TouchEventBoundary;
+    const boundary = new TouchEventBoundary({
+      ...defaultProps,
+      labelName: 'custom-sentry-label-name',
+    });
+
+    const event = {
+      _targetInst: {
+        elementType: {
+          displayName: 'View',
+        },
+        return: {
+          elementType: {
+            name: 'Text',
+          },
+          return: {
+            elementType: {
+              displayName: 'Connect(View)',
+              testID: 'Connect-View-TestID',
+            },
+            return: {
+              return: {
+                elementType: {
+                  testID: 'View-With-TestID',
+                },
+                return: {
+                  memoizedProps: {
+                    'sentry-label': 'LABEL!',
+                    'custom-sentry-label-name': 'access!',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    // @ts-ignore Calling private member
+    boundary._onTouchStart(event);
+
+    expect(addBreadcrumb).toBeCalledWith({
+      category: defaultProps.breadcrumbCategory,
+      data: {
+        componentTree: ['View', 'Connect(View)', 'View-With-TestID', 'LABEL!'],
+      },
+      level: 'info' as SeverityLevel,
+      message: 'Touch event within element: LABEL!',
+      type: defaultProps.breadcrumbType,
+    });
+  });
+
   it('ignoreNames', () => {
     const { defaultProps } = TouchEventBoundary;
     const boundary = new TouchEventBoundary({

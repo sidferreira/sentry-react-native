@@ -2,7 +2,7 @@ import { addBreadcrumb, getCurrentHub } from '@sentry/core';
 import type { SeverityLevel } from '@sentry/types';
 import { logger } from '@sentry/utils';
 import * as React from 'react';
-import type { GestureResponderEvent} from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import { StyleSheet, View } from 'react-native';
 
 import { createIntegration } from './integrations/factory';
@@ -56,6 +56,7 @@ const SENTRY_LABEL_PROP_KEY = 'sentry-label';
 
 interface ElementInstance {
   elementType?: {
+    testID?: string;
     displayName?: string;
     name?: string;
   };
@@ -71,7 +72,6 @@ interface PrivateGestureResponderEvent extends GestureResponderEvent {
  * Boundary to log breadcrumbs for interaction events.
  */
 class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
-
   public static displayName: string = '__Sentry.TouchEventBoundary';
   public static defaultProps: Partial<TouchEventBoundaryProps> = {
     breadcrumbCategory: DEFAULT_BREADCRUMB_CATEGORY,
@@ -113,18 +113,13 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
   /**
    * Logs the touch event given the component tree names and a label.
    */
-  private _logTouchEvent(
-    componentTreeNames: string[],
-    activeLabel?: string
-  ): void {
+  private _logTouchEvent(componentTreeNames: string[], activeLabel?: string): void {
     const level = 'info' as SeverityLevel;
     const crumb = {
       category: this.props.breadcrumbCategory,
       data: { componentTree: componentTreeNames },
       level: level,
-      message: activeLabel
-        ? `Touch event within element: ${activeLabel}`
-        : 'Touch event within component tree',
+      message: activeLabel ? `Touch event within element: ${activeLabel}` : 'Touch event within component tree',
       type: this.props.breadcrumbType,
     };
     addBreadcrumb(crumb);
@@ -147,7 +142,7 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
     return ignoreNames.some(
       (ignoreName: string | RegExp) =>
         (typeof ignoreName === 'string' && name === ignoreName) ||
-        (ignoreName instanceof RegExp && name.match(ignoreName))
+        (ignoreName instanceof RegExp && name.match(ignoreName)),
     );
   }
 
@@ -179,23 +174,19 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
     ) {
       if (
         // If the loop gets to the boundary itself, break.
-        currentInst.elementType?.displayName ===
-        TouchEventBoundary.displayName
+        currentInst.elementType?.displayName === TouchEventBoundary.displayName
       ) {
         break;
       }
 
       const props = currentInst.memoizedProps;
       const sentryLabel =
-        typeof props?.[SENTRY_LABEL_PROP_KEY] !== 'undefined'
-          ? `${props[SENTRY_LABEL_PROP_KEY]}`
-          : undefined;
+        typeof props?.[SENTRY_LABEL_PROP_KEY] !== 'undefined' ? `${props[SENTRY_LABEL_PROP_KEY]}` : undefined;
 
       // For some reason type narrowing doesn't work as expected with indexing when checking it all in one go in
       // the "check-label" if sentence, so we have to assign it to a variable here first
       let labelValue;
-      if (typeof this.props.labelName === 'string')
-        labelValue = props?.[this.props.labelName];
+      if (typeof this.props.labelName === 'string') labelValue = props?.[this.props.labelName];
 
       // Check the label first
       if (sentryLabel && !this._isNameIgnored(sentryLabel)) {
@@ -203,10 +194,7 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
           activeLabel = sentryLabel;
         }
         componentTreeNames.push(sentryLabel);
-      } else if (
-        typeof labelValue === 'string' &&
-        !this._isNameIgnored(labelValue)
-      ) {
+      } else if (typeof labelValue === 'string' && !this._isNameIgnored(labelValue)) {
         if (!activeLabel) {
           activeLabel = labelValue;
         }
@@ -214,15 +202,18 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
       } else if (currentInst.elementType) {
         const { elementType } = currentInst;
 
-        if (
-          elementType.displayName &&
-          !this._isNameIgnored(elementType.displayName)
-        ) {
+        if (elementType.displayName && !this._isNameIgnored(elementType.displayName)) {
           // Check display name
           if (!activeDisplayName) {
             activeDisplayName = elementType.displayName;
           }
           componentTreeNames.push(elementType.displayName);
+        } else if (elementType.testID && !this._isNameIgnored(elementType.testID)) {
+          // Check display name
+          if (!activeDisplayName) {
+            activeDisplayName = elementType.testID;
+          }
+          componentTreeNames.push(elementType.testID);
         }
       }
 
@@ -250,9 +241,9 @@ class TouchEventBoundary extends React.Component<TouchEventBoundaryProps> {
 const withTouchEventBoundary = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   InnerComponent: React.ComponentType<any>,
-  boundaryProps?: TouchEventBoundaryProps
+  boundaryProps?: TouchEventBoundaryProps,
 ): React.FunctionComponent => {
-  const WrappedComponent: React.FunctionComponent = (props) => (
+  const WrappedComponent: React.FunctionComponent = props => (
     <TouchEventBoundary {...(boundaryProps ?? {})}>
       <InnerComponent {...props} />
     </TouchEventBoundary>
